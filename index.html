@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>给父亲的时光博物馆</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: #faf6f0;
+            overflow-x: hidden;
+            color: #4a3728;
+        }
+
+        /* 加载画面 */
+        #loader {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #faf6f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 1s ease;
+        }
+        #loader.hidden { opacity: 0; pointer-events: none; }
+        .loader-icon {
+            width: 80px; height: 80px;
+            border: 4px solid #e8ddd0;
+            border-top: 4px solid #c4956a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #8b7355;
+            letter-spacing: 3px;
+        }
+
+        /* 音乐控制 */
+        #music-btn {
+            position: fixed;
+            top: 15px; right: 15px;
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        #music-btn.playing { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        /* 开场 */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(196,149,106,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            top: 10%; left: -50px;
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(139,115,85,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: 15%; right: -30px;
+        }
+        .hero-content { position: relative; z-index: 1; padding: 20px; }
+        .hero h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #5c4033;
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+        }
+        .hero .subtitle {
+            font-size: 16px;
+            color: #8b7355;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        .scroll-hint {
+            position: absolute;
+            bottom: 40px;
+            animation: bounce 2s infinite;
+            color: #a08060;
+            font-size: 24px;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        /* 3D 展厅区域 */
+        .museum-section {
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .section-title {
+            font-size: 24px;
+            color: #5c4033;
+            margin-bottom: 8px;
+            position: relative;
+            display: inline-block;
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: #c4956a;
+            border-radius: 2px;
+        }
+        .section-desc {
+            font-size: 14px;
+            color: #8b7355;
+            margin-top: 16px;
+            margin-bottom: 30px;
+        }
+
+        /* 3D 卡片容器 */
+        .gallery-3d {
+            perspective: 1000px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .photo-card {
+            width: 150px;
+            height: 180px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            cursor: pointer;
+        }
+        .photo-card:hover, .photo-card.tapped {
+            transform: rotateY(15deg) rotateX(-5deg) translateZ(30px) scale(1.05);
+        }
+        .photo-card-inner {
+            width: 100%; height: 100%;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 
+                0 4px 20px rgba(92,64,51,0.12),
+                0 1px 3px rgba(92,64,51,0.08);
+            overflow: hidden;
+            position: relative;
+        }
+        .photo-card img {
+            width: 100%; height: 65%;
+            object-fit: cover;
+            display: block;
+        }
+        .photo-card .card-label {
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #5c4033;
+            text-align: center;
+            background: #fff;
+        }
+        .photo-card .card-year {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #8b7355;
+        }
+
+        /* 视频区域 */
+        .video-section {
+            padding: 40px 20px;
+            background: #f5efe8;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .video-item {
+            background: #fff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(92,64,51,0.1);
+        }
+        .video-item video {
+            width: 100%;
+            display: block;
+            border-radius: 20px 20px 0 0;
+        }
+        .video-caption {
+            padding: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #5c4033;
+        }
+
+        /* 时间线 */
+        .timeline-section {
+            padding: 60px 20px;
+            position: relative;
+        }
+        .timeline {
+            position: relative;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: #e8ddd0;
+            border-radius: 3px;
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 50px;
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.6s ease;
+        }
+        .timeline-item.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .timeline-dot {
+            position: absolute;
+            left: 12px;
+            top: 5px;
+            width: 18px; height: 18px;
+            background: #c4956a;
+            border-radius: 50%;
+            border: 3px solid #faf6f0;
+            box-shadow: 0 0 0 3px #e8ddd0;
+        }
+        .timeline-content {
+            background: #fff;
+            padding: 16px 20px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(92,64,51,0.08);
+        }
+        .timeline-year {
+            font-size: 13px;
+            color: #c4956a;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .timeline-text {
+            font-size: 14px;
+            color: #5c4033;
+            line-height: 1.7;
+        }
+
+        /* 信件弹窗 */
+        .letter-section {
+            padding: 60px 20px;
+            text-align: center;
+            background: #f5efe8;
+        }
+        .open-letter-btn {
+            display: inline-block;
+            padding: 16px 40px;
+            background: #c4956a;
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(196,149,106,0.4);
+            transition: all 0.3s;
+            letter-spacing: 2px;
+        }
+        .open-letter-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(196,149,106,0.3);
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(74,55,40,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #fffef8;
+            border-radius: 24px;
+            padding: 30px 25px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            animation: modalIn 0.4s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 15px;
+            width: 32px; height: 32px;
+            background: #f5efe8;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            color: #8b7355;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-title {
+            font-size: 20px;
+            color: #5c4033;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .modal-body {
+            font-size: 15px;
+            color: #5c4033;
+            line-height: 2;
+            text-align: justify;
+        }
+        .modal-body p { margin-bottom: 12px; }
+
+        /* 图片预览弹窗 */
+        .img-preview-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 20px;
+        }
+        .img-preview-overlay.active { display: flex; }
+        .img-preview-overlay img {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .img-preview-close {
+            position: absolute;
+            top: 20px; right: 20px;
+            color: #fff;
+            font-size: 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* 结尾 */
+        .footer {
+            padding: 50px 20px;
+            text-align: center;
+            background: #faf6f0;
+        }
+        .footer-text {
+            font-size: 14px;
+            color: #a08060;
+            line-height: 2;
+        }
+        .footer-heart {
+            font-size: 24px;
+            margin-top: 10px;
+            animation: heartbeat 1.5s infinite;
+        }
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* 浮动装饰 */
+        .floating-shape {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.06;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 加载画面 -->
+<div id="loader">
+    <div class="loader-icon"></div>
+    <div class="loader-text">正在打开时光博物馆...</div>
+</div>
+
+<!-- 背景音乐 -->
+<audio id="bgm" loop>
+    <source src="bgm.mp3" type="audio/mpeg">
+</audio>
+<button id="music-btn">🎵</button>
+
+<!-- 开场 -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>父亲的时光博物馆</h1>
+        <p class="subtitle">这里收藏着我们共同的回忆</p>
+        <p style="font-size: 13px; color: #a08060; margin-top: 10px;">2026 · 父亲节</p>
+    </div>
+    <div class="scroll-hint">↓</div>
+</section>
+
+<!-- 3D 照片展厅 -->
+<section class="museum-section">
+    <h2 class="section-title">回忆展厅</h2>
+    <p class="section-desc">点击照片，查看我们的故事</p>
+    <div class="gallery-3d" id="gallery">
+        <!-- 照片卡片由 JS 生成 -->
+    </div>
+</section>
+
+<!-- 视频区域 -->
+<section class="video-section">
+    <h2 class="section-title">珍贵影像</h2>
+    <p class="section-desc">那些会动的回忆</p>
+    <div class="video-grid" id="videoGrid">
+        <!-- 视频由 JS 生成 -->
+    </div>
+</section>
+
+<!-- 时间线 -->
+<section class="timeline-section">
+    <h2 class="section-title">时光轴</h2>
+    <p class="section-desc">一路走来，感恩有你</p>
+    <div class="timeline" id="timeline">
+        <!-- 时间线由 JS 生成 -->
+    </div>
+</section>
+
+<!-- 信件 -->
+<section class="letter-section">
+    <h2 class="section-title">一封信</h2>
+    <p class="section-desc" style="margin-bottom: 25px;">有些话，想认真说给你听</p>
+    <button class="open-letter-btn" onclick="openLetter()">💌 打开这封信</button>
+</section>
+
+<!-- 结尾 -->
+<section class="footer">
+    <p class="footer-text">
+        这个博物馆会一直在<br>
+        就像你一直在我的心里
+    </p>
+    <div class="footer-heart">❤️</div>
+    <p style="font-size: 12px; color: #c0a080; margin-top: 15px;">—— 你的孩子</p>
+</section>
+
+<!-- 信件弹窗 -->
+<div class="modal-overlay" id="letterModal" onclick="closeLetter(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeLetter()">✕</button>
+        <h3 class="modal-title">给父亲的一封信</h3>
+        <div class="modal-body" id="letterContent">
+            <p>亲爱的爸爸：</p>
+            <p>父亲节快乐。</p>
+            <p>从小到大，你一直是我心中最可靠的那个人。小时候觉得你是超人，什么都会；长大后才发现，你只是为了我，愿意去学一切。</p>
+            <p>那些你陪我走过的路、说过的话、做过的事，我都记得。只是以前没说出口，今天想让你知道——</p>
+            <p>谢谢你，一直都在。</p>
+            <p style="text-align: right; margin-top: 20px;">爱你的孩子<br>2026年6月</p>
+        </div>
+    </div>
+</div>
+
+<!-- 图片预览 -->
+<div class="img-preview-overlay" id="imgPreview" onclick="closePreview()">
+    <button class="img-preview-close">✕</button>
+    <img src="" alt="预览" id="previewImg">
+</div>
+
+<script>
+// ==================== 数据配置区 ====================
+// 你只需修改这里的内容，不需要动其他代码
+
+const photos = [
+    { src: '01.jpg', label: '第一张回忆', year: '2020' },
+    { src: '02.jpg', label: '第二张回忆', year: '2020' },
+    { src: '03.jpg', label: '第三张回忆', year: '2020' },
+    { src: '04.jpg', label: '第四张回忆', year: '2020' },
+    { src: '05.jpg', label: '第五张回忆', year: '2020' },
+    { src: '06.jpg', label: '第六张回忆', year: '2020' },
+    { src: '07.jpg', label: '第七张回忆', year: '2020' },
+    { src: '08.jpg', label: '第八张回忆', year: '2020' },
+    { src: '09.jpg', label: '第九张回忆', year: '2020' },
+    { src: '10.jpg', label: '第十张回忆', year: '2020' },
+    { src: '11.jpg', label: '第十一张回忆', year: '2020' },
+    { src: '12.jpg', label: '第十二张回忆', year: '2020' },
+    { src: '13.jpg', label: '第十三张回忆', year: '2020' },
+    { src: '14.jpg', label: '第十四张回忆', year: '2020' },
+    { src: '15.jpg', label: '第十五张回忆', year: '2020' },
+    { src: '16.jpg', label: '第十六张回忆', year: '2020' },
+    { src: '17.jpg', label: '第十七张回忆', year: '2020' },
+    { src: '18.jpg', label: '第十八张回忆', year: '2020' },
+    { src: '19.jpg', label: '第十九张回忆', year: '2020' },
+    { src: '20.jpg', label: '第二十张回忆', year: '2020' },
+];
+
+const videos = [
+    { src: '01.mp4', caption: '第一个珍贵瞬间' },
+    { src: '02.mp4', caption: '第二个珍贵瞬间' },
+    { src: '03.mp4', caption: '第三个珍贵瞬间' },
+    { src: '04.mp4', caption: '第四个珍贵瞬间' },
+    { src: '05.mp4', caption: '第五个珍贵瞬间' },
+];
+
+const timelineData = [
+    { year: '小时候', text: '你牵着我的手，教我走路。那时候你的手掌很大，很温暖。' },
+    { year: '上学后', text: '每次放学，校门口总有你的身影。风雨无阻。' },
+    { year: '青春期', text: '我变得叛逆，话少了。但你从未放弃我，只是默默守护。' },
+    { year: '长大后', text: '离家远了，电话里的你总是说"没事，都好"。我知道你想我了。' },
+    { year: '现在', text: '我终于懂了，你那些没说出口的爱，比任何语言都重。' },
+    { year: '未来', text: '换我来扛起这个家。就像曾经的你一样。' },
+];
+
+// ==================== 生成内容 ====================
+
+// 生成照片卡片
+const gallery = document.getElementById('gallery');
+photos.forEach((photo, i) => {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    card.innerHTML = `
+        <div class="photo-card-inner">
+            <span class="card-year">${photo.year}</span>
+            <img src="${photo.src}" alt="${photo.label}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22150%22 height=%22117%22><rect fill=%22%23f0e6d8%22 width=%22150%22 height=%22117%22/><text fill=%22%23a08060%22 x=%2275%22 y=%2260%22 text-anchor=%22middle%22 font-size=%2212%22>照片 ${i+1}</text></svg>'">
+            <div class="card-label">${photo.label}</div>
+        </div>
+    `;
+    // 点击预览
+    card.querySelector('img').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPreview(photo.src);
+    });
+    // 触摸设备添加 tapped 类
+    card.addEventListener('touchstart', () => card.classList.add('tapped'));
+    card.addEventListener('touchend', () => setTimeout(() => card.classList.remove('tapped'), 300));
+    gallery.appendChild(card);
+});
+
+// 生成视频
+const videoGrid = document.getElementById('videoGrid');
+videos.forEach((video, i) => {
+    const item = document.createElement('div');
+    item.className = 'video-item';
+    item.innerHTML = `
+        <video controls preload="metadata" poster="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='200'><rect fill='%23e8ddd0' width='100%25' height='200'/><text fill='%23a08060' x='50%25' y='50%25' text-anchor='middle' font-size='14'>视频 ${i+1}</text></svg>">
+            <source src="${video.src}" type="video/mp4">
+        </video>
+        <div class="video-caption">${video.caption}</div>
+    `;
+    videoGrid.appendChild(item);
+});
+
+// 生成时间线
+const timeline = document.getElementById('timeline');
+timelineData.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'timeline-item';
+    div.innerHTML = `
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+            <div class="timeline-year">${item.year}</div>
+            <div class="timeline-text">${item.text}</div>
+        </div>
+    `;
+    timeline.appendChild(div);
+});
+
+// ==================== 交互功能 ====================
+
+// 加载完成后隐藏 loader
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        document.getElementById('loader').classList.add('hidden');
+    }, 1500);
+});
+
+// 音乐控制
+const bgm = document.getElementById('bgm');
+const musicBtn = document.getElementById('music-btn');
+let musicPlaying = false;
+
+musicBtn.addEventListener('click', () => {
+    if (musicPlaying) {
+        bgm.pause();
+        musicBtn.textContent = '🔇';
+        musicBtn.classList.remove('playing');
+    } else {
+        bgm.play().catch(() => {});
+        musicBtn.textContent = '🎵';
+        musicBtn.classList.add('playing');
+    }
+    musicPlaying = !musicPlaying;
+});
+
+// 自动尝试播放（部分浏览器会阻止）
+document.addEventListener('click', function autoPlay() {
+    if (!musicPlaying) {
+        bgm.play().then(() => {
+            musicPlaying = true;
+            musicBtn.classList.add('playing');
+        }).catch(() => {});
+    }
+    document.removeEventListener('click', autoPlay);
+}, { once: true });
+
+// 信件弹窗
+function openLetter() {
+    document.getElementById('letterModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeLetter(e) {
+    if (!e || e.target === document.getElementById('letterModal') || e.target.closest('.modal-close')) {
+        document.getElementById('letterModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+// 图片预览
+function openPreview(src) {
+    document.getElementById('previewImg').src = src;
+    document.getElementById('imgPreview').classList.add('active');
+}
+function closePreview() {
+    document.getElementById('imgPreview').classList.remove('active');
+}
+
+// 时间线滚动动画
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+        }
+    });
+}, { threshold: 0.2 });
+
+document.querySelectorAll('.timeline-item').forEach(item => observer.observe(item));
+
+// 3D 卡片视差效果（移动端简化）
+if (!window.matchMedia('(pointer: coarse)').matches) {
+    document.addEventListener('mousemove', (e) => {
+        const cards = document.querySelectorAll('.photo-card');
+        const x = (e.clientX / window.innerWidth - 0.5) * 10;
+        const y = (e.clientY / window.innerHeight - 0.5) * 10;
+        cards.forEach((card, i) => {
+            const delay = i * 0.05;
+            card.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
+        });
+    });
+}
+</script>
+
+
+
+<!-- ==================== 父子奔赴动画 ==================== -->
+<div id="reunion-animation" style="display:none;">
+    <div class="anim-scene">
+        <!-- 背景 -->
+        <div class="anim-sky"></div>
+        <div class="anim-ground"></div>
+
+        <!-- 太阳 -->
+        <div class="anim-sun">
+            <div class="anim-sun-glow"></div>
+        </div>
+
+        <!-- 云朵 -->
+        <div class="anim-cloud" style="top:12%; left:15%; animation-delay:0s;"></div>
+        <div class="anim-cloud" style="top:8%; left:60%; animation-delay:3s; transform:scale(0.7);"></div>
+        <div class="anim-cloud" style="top:15%; left:80%; animation-delay:6s; transform:scale(0.5);"></div>
+
+        <!-- 远山 -->
+        <div class="anim-mountains">
+            <div class="anim-mountain" style="left:10%; height:60px; opacity:0.3;"></div>
+            <div class="anim-mountain" style="left:35%; height:80px; opacity:0.4;"></div>
+            <div class="anim-mountain" style="left:60%; height:55px; opacity:0.25;"></div>
+            <div class="anim-mountain" style="left:80%; height:70px; opacity:0.35;"></div>
+        </div>
+
+        <!-- 树木 -->
+        <div class="anim-tree" style="left:8%; bottom:22%;"></div>
+        <div class="anim-tree" style="left:22%; bottom:24%; transform:scale(0.8);"></div>
+        <div class="anim-tree" style="left:75%; bottom:23%; transform:scale(0.9);"></div>
+        <div class="anim-tree" style="left:88%; bottom:21%; transform:scale(0.7);"></div>
+
+        <!-- 花草装饰 -->
+        <div class="anim-flower" style="left:12%; bottom:20%;">🌸</div>
+        <div class="anim-flower" style="left:30%; bottom:19%;">🌼</div>
+        <div class="anim-flower" style="left:68%; bottom:20%;">🌺</div>
+        <div class="anim-flower" style="left:85%; bottom:19%;">🌻</div>
+
+        <!-- 第一阶段：年幼男孩 -->
+        <div class="anim-boy-young" id="animBoyYoung">
+            <div class="anim-boy-head">😊</div>
+            <div class="anim-boy-body"></div>
+            <div class="anim-boy-arm-left"></div>
+            <div class="anim-boy-arm-right"></div>
+            <div class="anim-boy-leg-left"></div>
+            <div class="anim-boy-leg-right"></div>
+        </div>
+
+        <!-- 第一阶段：年轻父亲 -->
+        <div class="anim-father-young" id="animFatherYoung">
+            <div class="anim-father-head">😄</div>
+            <div class="anim-father-body"></div>
+            <div class="anim-father-arm-left"></div>
+            <div class="anim-father-arm-right"></div>
+            <div class="anim-father-leg-left"></div>
+            <div class="anim-father-leg-right"></div>
+        </div>
+
+        <!-- 第二阶段：拥抱转圈 -->
+        <div class="anim-hug-spin" id="animHugSpin">
+            <div class="anim-spin-father">
+                <div class="anim-spin-father-head">😄</div>
+                <div class="anim-spin-father-body"></div>
+            </div>
+            <div class="anim-spin-boy">
+                <div class="anim-spin-boy-head">😆</div>
+                <div class="anim-spin-boy-body"></div>
+            </div>
+            <!-- 旋转时的星星特效 -->
+            <div class="anim-star" style="top:20%; left:30%;">✨</div>
+            <div class="anim-star" style="top:15%; left:70%; animation-delay:0.3s;">✨</div>
+            <div class="anim-star" style="top:25%; left:50%; animation-delay:0.6s;">✨</div>
+        </div>
+
+        <!-- 第三阶段：长大后并排 -->
+        <div class="anim-grown-scene" id="animGrownScene">
+            <div class="anim-grown-son" id="animGrownSon">
+                <div class="anim-grown-head">😊</div>
+                <div class="anim-grown-body"></div>
+                <div class="anim-grown-arm-left"></div>
+                <div class="anim-grown-arm-right"></div>
+            </div>
+            <div class="anim-grown-father" id="animGrownFather">
+                <div class="anim-grown-head-father">😌</div>
+                <div class="anim-grown-body-father"></div>
+                <div class="anim-grown-arm-left-father"></div>
+                <div class="anim-grown-arm-right-father"></div>
+            </div>
+            <!-- 搭肩的手臂 -->
+            <div class="anim-shoulder-arm" id="animShoulderArm"></div>
+        </div>
+
+        <!-- 爱心粒子 -->
+        <div class="anim-hearts-container" id="animHearts"></div>
+
+        <!-- 字幕 -->
+        <div class="anim-subtitle" id="animSubtitle">
+            <div class="anim-subtitle-line">年少不懂父爱深沉</div>
+            <div class="anim-subtitle-line">长大才知您的不易</div>
+            <div class="anim-subtitle-line anim-subtitle-emphasis">满心感恩与亏欠</div>
+            <div class="anim-subtitle-line anim-subtitle-wish">愿我的爸爸永远幸福安康</div>
+            <div class="anim-subtitle-heart">❤️</div>
+        </div>
+
+        <!-- 跳过按钮 -->
+        <button class="anim-skip-btn" id="animSkipBtn" onclick="skipAnimation()">跳过 ⏭</button>
+    </div>
+</div>
+
+<style>
+/* ==================== 动画场景样式 ==================== */
+#reunion-animation {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 9998;
+    background: #faf6f0;
+}
+
+.anim-scene {
+    position: relative;
+    width: 100%; height: 100%;
+    overflow: hidden;
+}
+
+/* 天空 */
+.anim-sky {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 65%;
+    background: linear-gradient(180deg, #e8f4f8 0%, #f5e6d3 50%, #faf6f0 100%);
+}
+
+/* 太阳 */
+.anim-sun {
+    position: absolute;
+    top: 8%; right: 15%;
+    width: 50px; height: 50px;
+}
+.anim-sun::before {
+    content: '';
+    position: absolute;
+    width: 50px; height: 50px;
+    background: #ffd699;
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(255, 214, 153, 0.6);
+}
+.anim-sun-glow {
+    position: absolute;
+    width: 80px; height: 80px;
+    top: -15px; left: -15px;
+    border: 2px solid rgba(255, 214, 153, 0.3);
+    border-radius: 50%;
+    animation: sunPulse 3s ease-in-out infinite;
+}
+@keyframes sunPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+/* 云朵 */
+.anim-cloud {
+    position: absolute;
+    width: 60px; height: 24px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 20px;
+    animation: cloudFloat 20s linear infinite;
+}
+.anim-cloud::before {
+    content: '';
+    position: absolute;
+    width: 30px; height: 30px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    top: -12px; left: 10px;
+}
+.anim-cloud::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    top: -8px; left: 30px;
+}
+@keyframes cloudFloat {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(100vw); }
+}
+
+/* 地面 */
+.anim-ground {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 22%;
+    background: linear-gradient(180deg, #c8d9a8 0%, #a8c484 100%);
+    border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+}
+
+/* 远山 */
+.anim-mountains {
+    position: absolute;
+    bottom: 22%; left: 0;
+    width: 100%; height: 100px;
+}
+.anim-mountain {
+    position: absolute;
+    bottom: 0;
+    width: 120px;
+    background: #b8c9a0;
+    border-radius: 60px 60px 0 0;
+    transform: translateX(-50%);
+}
+
+/* 树木 */
+.anim-tree {
+    position: absolute;
+    width: 8px; height: 35px;
+    background: #8b6914;
+    border-radius: 4px;
+}
+.anim-tree::before {
+    content: '🌳';
+    position: absolute;
+    top: -20px; left: -12px;
+    font-size: 28px;
+}
+
+/* 花草 */
+.anim-flower {
+    position: absolute;
+    font-size: 14px;
+    animation: flowerSway 3s ease-in-out infinite;
+}
+@keyframes flowerSway {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+/* ==================== 人物通用样式 ==================== */
+.anim-boy-young, .anim-father-young, .anim-grown-son, .anim-grown-father {
+    position: absolute;
+    bottom: 22%;
+    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* 小男孩 */
+.anim-boy-young {
+    left: -80px;
+    width: 40px; height: 70px;
+}
+.anim-boy-head {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    z-index: 2;
+}
+.anim-boy-body {
+    position: absolute;
+    top: 26px; left: 50%;
+    transform: translateX(-50%);
+    width: 22px; height: 28px;
+    background: #6b9bd1;
+    border-radius: 8px 8px 4px 4px;
+}
+.anim-boy-arm-left, .anim-boy-arm-right {
+    position: absolute;
+    top: 30px;
+    width: 8px; height: 20px;
+    background: #f5c6a0;
+    border-radius: 4px;
+}
+.anim-boy-arm-left { left: 2px; transform: rotate(20deg); }
+.anim-boy-arm-right { right: 2px; transform: rotate(-20deg); }
+.anim-boy-leg-left, .anim-boy-leg-right {
+    position: absolute;
+    bottom: 0;
+    width: 8px; height: 18px;
+    background: #4a3728;
+    border-radius: 4px;
+}
+.anim-boy-leg-left { left: 10px; }
+.anim-boy-leg-right { right: 10px; }
+
+/* 奔跑动画 */
+@keyframes boyRun {
+    0% { left: -80px; }
+    100% { left: 35%; }
+}
+@keyframes boyRunLegs {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(30deg); }
+    75% { transform: rotate(-30deg); }
+}
+
+/* 年轻父亲 */
+.anim-father-young {
+    right: -100px;
+    width: 55px; height: 100px;
+}
+.anim-father-head {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    z-index: 2;
+}
+.anim-father-body {
+    position: absolute;
+    top: 30px; left: 50%;
+    transform: translateX(-50%);
+    width: 32px; height: 40px;
+    background: #5a7a9a;
+    border-radius: 10px 10px 5px 5px;
+}
+.anim-father-arm-left, .anim-father-arm-right {
+    position: absolute;
+    top: 35px;
+    width: 10px; height: 28px;
+    background: #e8b89a;
+    border-radius: 5px;
+}
+.anim-father-arm-left { left: 0; transform: rotate(15deg); }
+.anim-father-arm-right { right: 0; transform: rotate(-15deg); }
+.anim-father-leg-left, .anim-father-leg-right {
+    position: absolute;
+    bottom: 0;
+    width: 10px; height: 28px;
+    background: #3a3028;
+    border-radius: 5px;
+}
+.anim-father-leg-left { left: 12px; }
+.anim-father-leg-right { right: 12px; }
+
+@keyframes fatherRun {
+    0% { right: -100px; }
+    100% { right: 35%; }
+}
+
+/* ==================== 拥抱转圈 ==================== */
+.anim-hug-spin {
+    position: absolute;
+    bottom: 22%; left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 100px; height: 120px;
+    opacity: 0;
+}
+.anim-spin-father {
+    position: absolute;
+    bottom: 0; left: 20px;
+    width: 55px; height: 100px;
+}
+.anim-spin-father-head {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+}
+.anim-spin-father-body {
+    position: absolute;
+    top: 30px; left: 50%;
+    transform: translateX(-50%);
+    width: 32px; height: 40px;
+    background: #5a7a9a;
+    border-radius: 10px;
+}
+.anim-spin-boy {
+    position: absolute;
+    bottom: 45px; left: 5px;
+    width: 40px; height: 70px;
+    transform-origin: bottom center;
+}
+.anim-spin-boy-head {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+}
+.anim-spin-boy-body {
+    position: absolute;
+    top: 26px; left: 50%;
+    transform: translateX(-50%);
+    width: 22px; height: 28px;
+    background: #6b9bd1;
+    border-radius: 8px;
+}
+
+@keyframes hugAppear {
+    0% { transform: translateX(-50%) scale(0); opacity: 0; }
+    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+@keyframes spinAround {
+    0% { transform: translateX(-50%) scale(1) rotate(0deg); }
+    100% { transform: translateX(-50%) scale(1) rotate(360deg); }
+}
+@keyframes boySpin {
+    0% { transform: rotate(0deg) translateY(0); }
+    50% { transform: rotate(180deg) translateY(-30px); }
+    100% { transform: rotate(360deg) translateY(0); }
+}
+
+/* 星星 */
+.anim-star {
+    position: absolute;
+    font-size: 20px;
+    opacity: 0;
+    animation: starTwinkle 1s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ==================== 长大后并排 ==================== */
+.anim-grown-scene {
+    position: absolute;
+    bottom: 22%; left: 50%;
+    transform: translateX(-50%);
+    width: 200px; height: 140px;
+    opacity: 0;
+}
+
+/* 长大的儿子 */
+.anim-grown-son {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 65px; height: 130px;
+}
+.anim-grown-head {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 32px;
+}
+.anim-grown-body {
+    position: absolute;
+    top: 35px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 55px;
+    background: #4a7a9a;
+    border-radius: 12px 12px 6px 6px;
+}
+.anim-grown-arm-left, .anim-grown-arm-right {
+    position: absolute;
+    top: 42px;
+    width: 12px; height: 35px;
+    background: #d4a574;
+    border-radius: 6px;
+}
+.anim-grown-arm-left { left: -2px; transform: rotate(25deg); }
+.anim-grown-arm-right { right: -2px; transform: rotate(-25deg); }
+
+/* 变老的父亲 */
+.anim-grown-father {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 58px; height: 120px;
+}
+.anim-grown-head-father {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    opacity: 0.9;
+}
+.anim-grown-body-father {
+    position: absolute;
+    top: 32px; left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 50px;
+    background: #6a7a8a;
+    border-radius: 10px 10px 5px 5px;
+    opacity: 0.9;
+}
+.anim-grown-arm-left-father, .anim-grown-arm-right-father {
+    position: absolute;
+    top: 38px;
+    width: 10px; height: 30px;
+    background: #c8a080;
+    border-radius: 5px;
+    opacity: 0.9;
+}
+.anim-grown-arm-left-father { left: -1px; transform: rotate(20deg); }
+.anim-grown-arm-right-father { right: -1px; transform: rotate(-20deg); }
+
+/* 搭肩的手臂 */
+.anim-shoulder-arm {
+    position: absolute;
+    top: 45px; left: 50px;
+    width: 50px; height: 8px;
+    background: #d4a574;
+    border-radius: 4px;
+    transform: rotate(-15deg);
+    opacity: 0;
+    transform-origin: left center;
+}
+
+@keyframes shoulderConnect {
+    0% { width: 0; opacity: 0; }
+    100% { width: 50px; opacity: 1; }
+}
+
+/* 并排走向远方 */
+@keyframes walkTogether {
+    0% { transform: translateX(-50%) translateX(0); }
+    100% { transform: translateX(-50%) translateX(30vw); }
+}
+
+/* 背景变黄昏 */
+@keyframes toSunset {
+    0% { background: linear-gradient(180deg, #e8f4f8 0%, #f5e6d3 50%, #faf6f0 100%); }
+    100% { background: linear-gradient(180deg, #f5d0a0 0%, #e8a878 50%, #d4846a 100%); }
+}
+
+/* ==================== 爱心粒子 ==================== */
+.anim-hearts-container {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+.anim-heart-particle {
+    position: absolute;
+    font-size: 16px;
+    animation: heartFloat 4s ease-in infinite;
+    opacity: 0;
+}
+@keyframes heartFloat {
+    0% { transform: translateY(0) scale(0); opacity: 0; }
+    20% { opacity: 0.8; transform: scale(1); }
+    100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+}
+
+/* ==================== 字幕 ==================== */
+.anim-subtitle {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    opacity: 0;
+    width: 90%;
+    max-width: 400px;
+}
+.anim-subtitle-line {
+    font-size: 22px;
+    color: #5c4033;
+    line-height: 2;
+    opacity: 0;
+    transform: translateY(20px);
+    text-shadow: 0 2px 10px rgba(255,255,255,0.8);
+    font-weight: 600;
+}
+.anim-subtitle-emphasis {
+    font-size: 26px;
+    color: #c4956a;
+    margin: 10px 0;
+}
+.anim-subtitle-wish {
+    font-size: 20px;
+    color: #8b5a3c;
+    margin-top: 15px;
+}
+.anim-subtitle-heart {
+    font-size: 40px;
+    margin-top: 20px;
+    opacity: 0;
+    animation: heartbeat 1.2s ease-in-out infinite;
+}
+
+@keyframes subtitleIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes subtitleContainerIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* 背景暗化 */
+@keyframes bgDarken {
+    0% { background: rgba(0,0,0,0); }
+    100% { background: rgba(0,0,0,0.3); }
+}
+.anim-dark-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0);
+    z-index: 5;
+}
+
+/* 跳过按钮 */
+.anim-skip-btn {
+    position: absolute;
+    bottom: 20px; right: 20px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.8);
+    border: none;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #8b7355;
+    cursor: pointer;
+    z-index: 100;
+    font-family: inherit;
+    transition: all 0.3s;
+}
+.anim-skip-btn:hover {
+    background: rgba(255,255,255,0.95);
+}
+</style>
+
+<script>
+// ==================== 动画控制 ====================
+let animationSkipped = false;
+
+function playReunionAnimation() {
+    const animContainer = document.getElementById('reunion-animation');
+    animContainer.style.display = 'block';
+
+    const boy = document.getElementById('animBoyYoung');
+    const father = document.getElementById('animFatherYoung');
+    const hug = document.getElementById('animHugSpin');
+    const grownScene = document.getElementById('animGrownScene');
+    const grownSon = document.getElementById('animGrownSon');
+    const grownFather = document.getElementById('animGrownFather');
+    const shoulderArm = document.getElementById('animShoulderArm');
+    const subtitle = document.getElementById('animSubtitle');
+    const sky = document.querySelector('.anim-sky');
+    const heartsContainer = document.getElementById('animHearts');
+
+    // 阶段1: 两人从两边跑向中间 (0-3s)
+    boy.style.animation = 'boyRun 2.5s ease-out forwards';
+    father.style.animation = 'fatherRun 2.5s ease-out forwards';
+
+    // 腿部奔跑动画
+    const boyLegs = boy.querySelectorAll('.anim-boy-leg-left, .anim-boy-leg-right');
+    const fatherLegs = father.querySelectorAll('.anim-father-leg-left, .anim-father-leg-right');
+    boyLegs.forEach(leg => leg.style.animation = 'boyRunLegs 0.4s ease-in-out infinite');
+    fatherLegs.forEach(leg => leg.style.animation = 'boyRunLegs 0.4s ease-in-out infinite');
+
+    setTimeout(() => {
+        if (animationSkipped) return;
+
+        // 阶段2: 相遇拥抱转圈 (3-6s)
+        boy.style.opacity = '0';
+        father.style.opacity = '0';
+        hug.style.animation = 'hugAppear 0.5s ease-out forwards';
+
+        setTimeout(() => {
+            if (animationSkipped) return;
+            hug.style.animation = 'spinAround 2s ease-in-out forwards';
+            const spinBoy = hug.querySelector('.anim-spin-boy');
+            spinBoy.style.animation = 'boySpin 2s ease-in-out forwards';
+        }, 600);
+    }, 2800);
+
+    setTimeout(() => {
+        if (animationSkipped) return;
+
+        // 阶段3: 镜头反转，长大后并排 (6-9s)
+        hug.style.opacity = '0';
+        hug.style.transition = 'opacity 0.5s';
+
+        // 天空变黄昏
+        sky.style.animation = 'toSunset 2s ease forwards';
+
+        grownScene.style.opacity = '1';
+        grownScene.style.transition = 'opacity 1s';
+
+        // 搭肩
+        setTimeout(() => {
+            if (animationSkipped) return;
+            shoulderArm.style.animation = 'shoulderConnect 0.8s ease-out forwards';
+        }, 800);
+
+        // 走向远方
+        setTimeout(() => {
+            if (animationSkipped) return;
+            grownScene.style.animation = 'walkTogether 3s ease-in-out forwards';
+
+            // 生成爱心粒子
+            for (let i = 0; i < 15; i++) {
+                setTimeout(() => {
+                    if (animationSkipped) return;
+                    const heart = document.createElement('div');
+                    heart.className = 'anim-heart-particle';
+                    heart.textContent = ['❤️', '💛', '💖', '💝'][Math.floor(Math.random() * 4)];
+                    heart.style.left = Math.random() * 100 + '%';
+                    heart.style.bottom = '20%';
+                    heart.style.animationDelay = Math.random() * 2 + 's';
+                    heart.style.fontSize = (12 + Math.random() * 16) + 'px';
+                    heartsContainer.appendChild(heart);
+                }, i * 200);
+            }
+        }, 1500);
+    }, 6000);
+
+    setTimeout(() => {
+        if (animationSkipped) return;
+
+        // 阶段4: 字幕浮现 (10s+)
+        const darkOverlay = document.createElement('div');
+        darkOverlay.className = 'anim-dark-overlay';
+        darkOverlay.style.animation = 'bgDarken 1s ease forwards';
+        animContainer.appendChild(darkOverlay);
+
+        subtitle.style.animation = 'subtitleContainerIn 1s ease forwards';
+
+        const lines = subtitle.querySelectorAll('.anim-subtitle-line');
+        lines.forEach((line, i) => {
+            setTimeout(() => {
+                if (animationSkipped) return;
+                line.style.animation = 'subtitleIn 1s ease forwards';
+            }, 500 + i * 1200);
+        });
+
+        // 最后的心
+        setTimeout(() => {
+            if (animationSkipped) return;
+            const heart = subtitle.querySelector('.anim-subtitle-heart');
+            heart.style.opacity = '1';
+            heart.style.transition = 'opacity 1s';
+        }, 500 + lines.length * 1200 + 500);
+
+        // 动画结束，显示进入按钮
+        setTimeout(() => {
+            if (animationSkipped) return;
+            showEnterButton(animContainer);
+        }, 500 + lines.length * 1200 + 3000);
+
+    }, 10000);
+}
+
+function showEnterButton(container) {
+    const btn = document.createElement('button');
+    btn.textContent = '进入博物馆 →';
+    btn.style.cssText = `
+        position: absolute;
+        bottom: 15%;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 14px 40px;
+        background: #c4956a;
+        color: #fff;
+        border: none;
+        border-radius: 30px;
+        font-size: 16px;
+        font-family: inherit;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(196,149,106,0.4);
+        z-index: 20;
+        animation: subtitleIn 1s ease forwards;
+        letter-spacing: 2px;
+    `;
+    btn.onclick = () => {
+        container.style.opacity = '0';
+        container.style.transition = 'opacity 1s';
+        setTimeout(() => {
+            container.style.display = 'none';
+            document.body.style.overflow = '';
+        }, 1000);
+    };
+    container.appendChild(btn);
+}
+
+function skipAnimation() {
+    animationSkipped = true;
+    const container = document.getElementById('reunion-animation');
+    container.style.opacity = '0';
+    container.style.transition = 'opacity 0.5s';
+    setTimeout(() => {
+        container.style.display = 'none';
+        document.body.style.overflow = '';
+    }, 500);
+}
+
+// 修改原有的加载完成逻辑，启动动画
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        document.getElementById('loader').classList.add('hidden');
+        // 启动父子奔赴动画
+        setTimeout(() => {
+            playReunionAnimation();
+        }, 500);
+    }, 1500);
+});
+</script>
+</body>
+</html>
